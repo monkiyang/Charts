@@ -453,4 +453,60 @@ open class YAxisRenderer: NSObject, AxisRenderer
             axis.centeredEntries.append(contentsOf: axis.entries.map { $0 + offset })
         }
     }
+    
+    open func renderLimitArea(context: CGContext) {
+        guard let transformer = self.transformer else {
+            return
+        }
+        let limitLines = axis.limitLines
+        guard !limitLines.isEmpty else {
+            return
+        }
+        context.saveGState()
+        defer { context.restoreGState() }
+        for i in 0 ..< limitLines.count / 2 {
+            renderLimitArea(context: context,
+                            startIndex: i * 2,
+                            limitLines: limitLines,
+                            transformer: transformer)
+        }
+    }
+    
+    private func renderLimitArea(context: CGContext,
+                                 startIndex: Int,
+                                 limitLines: [ChartLimitLine],
+                                 transformer: Transformer) {
+        var upper = 0.0
+        var lower = 0.0
+        var lineColor: UIColor = .clear
+        var lineWidth = CGFloat(0.0)
+        for i in 0 ..< 2 {
+            let l = limitLines[startIndex + i]
+            if !l.isEnabled {
+                return
+            }
+            if l.limit > upper {
+                upper = l.limit
+            } else {
+                lower = l.limit
+                lineColor = l.lineColor
+                lineWidth = l.lineWidth
+            }
+        }
+        var startPosition = CGPoint(x: 0.0, y: CGFloat(upper))
+        let trans = transformer.valueToPixelMatrix
+        startPosition = startPosition.applying(trans)
+        var endPosition = CGPoint(x: 0.0, y: CGFloat(lower))
+        endPosition = endPosition.applying(trans)
+        let x = viewPortHandler.contentLeft
+        let rect = CGRect(x: x,
+                          y: startPosition.y,
+                          width: viewPortHandler.contentRight - x,
+                          height: endPosition.y - startPosition.y);
+        context.setFillColor(lineColor.cgColor)
+        context.setLineWidth(lineWidth)
+        context.setStrokeColor(lineColor.cgColor)
+        context.addRect(rect)
+        context.drawPath(using: .fillStroke)
+    }
 }
